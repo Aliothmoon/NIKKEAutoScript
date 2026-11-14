@@ -48,6 +48,8 @@ def mount_api(app):
         Route('/api/rotate', routes_system.rotate, methods=['POST']),
         Route('/api/system/status', routes_system.status, methods=['GET']),
         Route('/api/system/update', routes_system.update_status, methods=['GET']),
+        Route('/api/system/update/source', routes_system.set_update_source, methods=['POST']),
+        Route('/api/system/update/cdk', routes_system.set_mirrorchyan_cdk, methods=['POST']),
         Route('/api/system/remote', routes_system.remote_status, methods=['GET']),
         Route('/api/system/notices', routes_system.notices, methods=['GET']),
         Route('/api/system/notices/read', routes_system.read_announcements, methods=['POST']),

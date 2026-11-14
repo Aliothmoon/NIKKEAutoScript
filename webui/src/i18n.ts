@@ -3,6 +3,17 @@ import { computed, ref } from 'vue'
 // 当前界面语言：system store 在 loadSystem/setLanguage 后同步到这里，t() 与各 store 直接读取。
 export const uiLanguage = ref('zh-CN')
 
+// 更新页“更新源”旁的说明气泡（参考 MAA 的更新源说明），换行按原样显示
+export const UPDATE_SOURCE_HELP = '🌐 Git：\n'
+  + '    • 免费，从部署设置中的仓库拉取更新（GitHub、国内镜像或 Gitee）\n'
+  + '    • 网络不稳定时可能较慢或失败，可在部署设置中配置 Git 代理\n'
+  + '\n'
+  + '🔑 Mirror酱：\n'
+  + '    • Mirror酱 是第三方应用分发平台，填写 CDK 后，源码更新改由 Mirror酱 的高速 CDN 下载，更稳定快速\n'
+  + '    • 通常只下载有变化的部分，更新后的代码与 Git 拉取的完全一致\n'
+  + '    • 仅支持官方仓库的 master 分支'
+export const MIRRORCHYAN_TIP = '填写 Mirror酱 CDK 后，源码更新从 Mirror酱 的高速 CDN 下载，更稳定快速'
+
 export const staticLabels: Record<string, Record<string, string>> = {
   '总览': { 'en-US': 'Dashboard', 'ja-JP': 'ダッシュボード' }, '实例': { 'en-US': 'Instances', 'ja-JP': 'インスタンス' },
   '新建实例': { 'en-US': 'New instance', 'ja-JP': '新しいインスタンス' }, '系统': { 'en-US': 'System', 'ja-JP': 'システム' },
@@ -350,6 +361,45 @@ export const staticLabels: Record<string, Record<string, string>> = {
   // 「为 X 选择头像」在英日语序相反，整句放在前一段，后一段留一个空格占位
   '为': { 'en-US': 'Choose an avatar for', 'ja-JP': 'アバターを選択：' },
   '选择头像': { 'en-US': ' ', 'ja-JP': ' ' },
+  // 更新页：更新源与 Mirror酱
+  '更新源': { 'en-US': 'Update source', 'ja-JP': '更新元' },
+  'Mirror酱 只提供官方仓库 master 分支的更新': { 'en-US': 'Mirror酱 only serves the master branch of the official repository', 'ja-JP': 'Mirror酱 は公式リポジトリの master ブランチのみ提供します' },
+  '已保存 CDK': { 'en-US': 'Saved CDK', 'ja-JP': '保存済み CDK' },
+  '输入新的 CDK 可替换': { 'en-US': 'enter a new one to replace it', 'ja-JP': '新しい CDK を入力すると置き換えます' },
+  '未填写 CDK': { 'en-US': 'No CDK yet', 'ja-JP': 'CDK が未入力です' },
+  '已切换为 Mirror酱 更新': { 'en-US': 'Switched to updates through Mirror酱', 'ja-JP': 'Mirror酱 での更新に切り替えました' },
+  '输入 Mirror酱 CDK': { 'en-US': 'Enter your Mirror酱 CDK', 'ja-JP': 'Mirror酱 の CDK を入力' },
+  '验证中…': { 'en-US': 'Verifying…', 'ja-JP': '検証中…' },
+  '获取 CDK': { 'en-US': 'Get a CDK', 'ja-JP': 'CDK を入手' },
+  'Mirror酱 CDK 验证通过': { 'en-US': 'Mirror酱 CDK verified', 'ja-JP': 'Mirror酱 の CDK を確認しました' },
+  '有效期至': { 'en-US': 'valid until', 'ja-JP': '有効期限' },
+  '已切换为 Git 更新': { 'en-US': 'Switched to updates through Git', 'ja-JP': 'Git での更新に切り替えました' },
+  'Mirror酱 新版本': { 'en-US': 'New version on Mirror酱', 'ja-JP': 'Mirror酱 の新しいバージョン' },
+  '什么是 Mirror酱？': { 'en-US': 'What is Mirror酱?', 'ja-JP': 'Mirror酱 とは？' },
+  'CDK 还剩 {0} 天到期': { 'en-US': 'The CDK expires in {0} days', 'ja-JP': 'CDK の有効期限まで残り {0} 日' },
+  'CDK 已过期，请使用新的 CDK': { 'en-US': 'The CDK has expired, use a new one', 'ja-JP': 'CDK の有効期限が切れています。新しい CDK を使用してください' },
+  [MIRRORCHYAN_TIP]: {
+    'en-US': 'With a Mirror酱 CDK, source updates download from the Mirror酱 high-speed CDN, faster and more stable',
+    'ja-JP': 'Mirror酱 の CDK を設定すると、ソースコードの更新を Mirror酱 の高速 CDN から取得し、より速く安定します',
+  },
+  [UPDATE_SOURCE_HELP]: {
+    'en-US': '🌐 Git:\n'
+      + '    • Free; pulls updates from the repository in the deploy settings (GitHub, the CN mirror or Gitee)\n'
+      + '    • Can be slow or fail on unstable networks; a Git proxy can be set in the deploy settings\n'
+      + '\n'
+      + '🔑 Mirror酱:\n'
+      + '    • Mirror酱 is a third-party app distribution platform. With a CDK, source updates download from its high-speed CDN, faster and more stable\n'
+      + '    • Usually only the changes are downloaded, and the code ends up exactly as Git would leave it\n'
+      + '    • Only for the master branch of the official repository',
+    'ja-JP': '🌐 Git：\n'
+      + '    • 無料。デプロイ設定のリポジトリ（GitHub、国内ミラー、Gitee）から更新を取得します\n'
+      + '    • ネットワークが不安定な場合は遅くなったり失敗したりします。デプロイ設定で Git プロキシを設定できます\n'
+      + '\n'
+      + '🔑 Mirror酱：\n'
+      + '    • Mirror酱 はサードパーティのアプリ配信プラットフォームです。CDK を設定すると、ソースコードの更新を高速 CDN から取得し、より速く安定します\n'
+      + '    • 通常は変更部分のみをダウンロードし、更新後のコードは Git で取得した場合と同じです\n'
+      + '    • 公式リポジトリの master ブランチのみ対応',
+  },
 }
 
 export const languageOptions = [{ value: 'zh-CN', label: '简体中文' }, { value: 'en-US', label: 'English' }, { value: 'ja-JP', label: '日本語' }]

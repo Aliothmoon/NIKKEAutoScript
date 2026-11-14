@@ -120,8 +120,48 @@ export const useUpdateStore = defineStore('update', () => {
       if (system.updateInfo.state === 'failed') {
         const reason = String(system.updateInfo.error || '')
         toast.notify(t('检查更新失败') + (reason ? `：${reason}` : ''), 'error', 10000)
+      } else {
+        // An unchanged card reads like the click did nothing; say what the check
+        // found and through which source.
+        const via = system.updateInfo.source?.type === 'mirrorchyan' ? 'Mirror酱' : 'Git'
+        const found = Number(system.updateInfo.state) === 1 ? t('有新版本可用') : t('已是最新')
+        toast.notify(`${found} · ${via}`)
       }
     } catch (exception: any) { toast.error = exception.message } finally { updateChecking.value = false }
+  }
+  // Update source of the source update card: git or Mirror酱, switched right
+  // away; the Mirror酱 CDK is saved on its own after Mirror酱 accepts it.  Both
+  // check again, since a result of the other source or CDK says nothing.
+  const sourceSaving = ref(false)
+  async function postSourceChange(path: string, body: unknown) {
+    if (sourceSaving.value) return null
+    sourceSaving.value = true
+    const system = useSystemStore()
+    try {
+      const result = await api.post(path, body)
+      system.updateInfo = { ...system.updateInfo, source: result.source, state: 0, error: '', mirrorchyan_latest: null }
+      return result
+    } catch (exception: any) {
+      toast.error = exception.message
+      return null
+    } finally { sourceSaving.value = false }
+  }
+  async function saveUpdateSource(type: 'git' | 'mirrorchyan') {
+    const result = await postSourceChange('/api/system/update/source', { type })
+    if (!result) return false
+    toast.notify(type === 'mirrorchyan' ? t('已切换为 Mirror酱 更新') : t('已切换为 Git 更新'))
+    // Mirror酱 without a CDK can only fail: the CDK comes first
+    if (type === 'git' || result.source.cdk_set) checkUpdate()
+    return true
+  }
+  async function saveMirrorChyanCdk(cdk: string) {
+    const result = await postSourceChange('/api/system/update/cdk', { cdk })
+    if (!result) return false
+    const expires = Number(result.expires) || 0
+    useSystemStore().updateInfo.mirrorchyan_cdk = { expires, error: '' }
+    toast.notify(t('Mirror酱 CDK 验证通过') + (expires ? ` · ${t('有效期至')} ${new Date(expires * 1000).toLocaleString()}` : ''))
+    checkUpdate()
+    return true
   }
   const updating = ref(false)
   function runUpdate() {
@@ -191,5 +231,6 @@ export const useUpdateStore = defineStore('update', () => {
     isDesktopShell, desktopUpdate, desktopChecking, desktopApplying,
     refreshDesktopUpdate, checkDesktopUpdate, applyDesktopUpdate, notifyDesktopUpdate,
     checkUpdate, updating, runUpdate, restarting, forceRestart, clearPollTimers,
+    sourceSaving, saveUpdateSource, saveMirrorChyanCdk,
   }
 })

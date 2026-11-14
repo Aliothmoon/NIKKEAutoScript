@@ -3,8 +3,10 @@ import shutil
 import subprocess
 import urllib.request
 from functools import cached_property
+from typing import Optional
 
 from deploy.config import DeployConfig, ExecutionError
+from deploy.mirrorchyan import SOURCE_MIRRORCHYAN, MirrorChyan, MirrorChyanError, api_base, resource_id, serves
 from module.logger import logger
 
 
@@ -61,6 +63,53 @@ class GitManager(DeployConfig):
             return False
         return True
 
+    # release note of the version Mirror酱 updated to, '' otherwise
+    mirrorchyan_release_note = ''
+
+    def uses_mirrorchyan(self) -> bool:
+        """Whether Mirror酱 is the update source; then updates never go through git."""
+        return self.UpdateSource == SOURCE_MIRRORCHYAN
+
+    def mirrorchyan_client(self, cdk: Optional[str] = None) -> MirrorChyan:
+        """
+        Args:
+            cdk: a CDK to try instead of the configured one
+
+        Raises:
+            MirrorChyanError: without a CDK, or for a repository or branch Mirror酱 lacks
+        """
+        cdk = self.MirrorChyanCdk if cdk is None else cdk
+        if not cdk:
+            raise MirrorChyanError('请先填写 Mirror酱 CDK')
+        if not serves(self.Repository, self.Branch):
+            raise MirrorChyanError('Mirror酱 只提供官方仓库 master 分支的更新')
+        return MirrorChyan(
+            git=self.git,
+            api=api_base(),
+            rid=resource_id(),
+            cdk=str(cdk),
+        )
+
+    def _mirrorchyan_fetch(self, source, branch) -> Optional[bool]:
+        """
+        Returns:
+            True if Mirror酱 fetched another version, False if it has no other,
+            None if git is the update source.
+
+        Raises:
+            ExecutionError: Mirror酱 failed; the repository is left as it was
+        """
+        if not self.uses_mirrorchyan():
+            return None
+        logger.hr('Fetch From Mirror酱', 1)
+        try:
+            fetched, note = self.mirrorchyan_client().fetch(source, branch)
+        except Exception as e:
+            logger.error(f'Mirror酱 update failed: {e}')
+            raise ExecutionError(f'Mirror酱 更新失败：{e}') from e
+        self.mirrorchyan_release_note = note
+        return fetched
+
     def git_repository_init(self, repo, source='origin', branch='master', proxy=''):
         """
         初始化Git
@@ -94,10 +143,20 @@ class GitManager(DeployConfig):
             拉取最新上游仓库最新commit
         """
         logger.hr('Fetch Repository Branch', 1)
-        if self._is_up_to_date(source, branch):
-            logger.info('Local HEAD matches remote branch, skip fetch and reset')
+        fetched = self._mirrorchyan_fetch(source, branch)
+        if fetched is False:
+            # Mirror酱 has no other version: only revert local changes, as git would
+            if self._git_output(['status', '--porcelain', '-uno']):
+                logger.info('Local tracked changes detected, force reset')
+                self.execute(f'"{self.git}" reset --hard HEAD')
+            else:
+                logger.info('Mirror酱: already the latest version')
             return
-        self.execute(f'"{self.git}" fetch --depth=20 {source} {branch}', capture_error=True)
+        if fetched is None:
+            if self._is_up_to_date(source, branch):
+                logger.info('Local HEAD matches remote branch, skip fetch and reset')
+                return
+            self.execute(f'"{self.git}" fetch --depth=20 {source} {branch}', capture_error=True)
 
         # Remove git lock
         lock_file = './.git/index.lock'

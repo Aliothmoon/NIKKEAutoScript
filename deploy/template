@@ -24,6 +24,12 @@ Deploy:
     # Update NKAS at startup
     # [In most cases] Use true
     AutoUpdate: true
+    # Where source updates come from, set on the update page
+    # [In most cases] Use git
+    # [MirrorChyan] Use mirrorchyan with a MirrorChyan CDK, see https://mirrorchyan.com
+    #   only the master branch of the official repository, git is the fallback
+    UpdateSource: git
+    MirrorChyanCdk: null
 
   Python:
     # Filepath of python executable `python.exe`

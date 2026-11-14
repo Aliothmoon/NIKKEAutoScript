@@ -55,12 +55,19 @@ class Starter(GitManager, PipManager, NKASManager):
 
         self._remove_notice_file(self.AUTO_UPDATE_FAILED_NOTICE_PATH)
         rev_range = f'{before_sha}..{after_sha}'
+        if self.mirrorchyan_release_note:
+            # history from Mirror酱 starts at the new commit, its release note lists the changes
+            messages = [line.strip() for line in self.mirrorchyan_release_note.splitlines() if line.strip()]
+            commit_count = len(messages)
+        else:
+            messages = self._get_commit_messages(rev_range)
+            commit_count = self._get_commit_count(rev_range)
         payload = {
             'updated_at': datetime.now().isoformat(timespec='seconds'),
             'from_sha': before_sha[:8],
             'to_sha': after_sha[:8],
-            'commit_count': self._get_commit_count(rev_range),
-            'messages': self._get_commit_messages(rev_range),
+            'commit_count': commit_count,
+            'messages': messages,
         }
         os.makedirs(os.path.dirname(self.AUTO_UPDATE_NOTICE_PATH), exist_ok=True)
         with open(self.AUTO_UPDATE_NOTICE_PATH, 'w', encoding='utf-8') as f:
