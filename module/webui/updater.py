@@ -7,6 +7,7 @@ from typing import Generator, List, Tuple
 import requests
 from deploy.config import ExecutionError
 from deploy.git import GitManager
+from deploy.mirrorchyan import MIRRORCHYAN_PREVIOUS_REF, MirrorChyanError
 from deploy.pip import PipManager
 from deploy.utils import DEPLOY_CONFIG
 from module.base.retry import retry
@@ -45,6 +46,12 @@ class Updater(DeployConfig, GitManager, PipManager):
         # the SPA via /api/system/update so a failure is not silently shown
         # as "up to date".
         self.check_error = ''
+        # version_name and release_note of the newer version the last check
+        # found on Mirror酱, None otherwise
+        self.mirrorchyan_latest = None
+        # the CDK as of the last Mirror酱 check or validation: when it expires
+        # (unix time, 0 if unknown) and what is wrong with it ('' if nothing)
+        self.mirrorchyan_cdk = None
 
     @property
     def delay(self):
@@ -100,6 +107,31 @@ class Updater(DeployConfig, GitManager, PipManager):
         else:
             return logs
 
+    def get_history(self, n=20) -> List[Tuple]:
+        """
+        Commits of the update history, newest first, as (short sha1, author, isotime, message).
+
+        A version from Mirror酱 has no parents locally, so `git log` stops at it; the
+        history goes on from the version the update came from, which Mirror酱 records.
+        """
+        rows, revision, seen = [], f"origin/{self.Branch}", set()
+        while revision and len(rows) < n:
+            log = self.execute_output(
+                f'"{self.git}" log {revision} --pretty=format:"%H---%h---%an---%ad---%s" --date=iso -{n - len(rows)}'
+            )
+            segment = [line.split("---", 4) for line in log.splitlines() if line.count("---") >= 4]
+            if not segment:
+                break
+            rows += segment
+            previous = self.execute_output(
+                f'"{self.git}" rev-parse --verify -q {MIRRORCHYAN_PREVIOUS_REF}/{segment[-1][0]}'
+            ).strip()
+            if not previous or previous in seen:
+                break
+            seen.add(previous)
+            revision = previous
+        return [tuple(row[1:]) for row in rows[:n]]
+
     def _git_fetch(self, source) -> bool:
         # Same command as execute() but with a hard timeout: os.system can
         # hang for many minutes on unreachable networks, leaving the updater
@@ -136,17 +168,26 @@ class Updater(DeployConfig, GitManager, PipManager):
             return False
 
     def _do_check_update(self) -> bool:
-        if State.deploy_config.GitOverCdn:
-            status = self.goc_client.get_status()
-            if status == "uptodate":
-                logger.info(f"No update")
-                return False
-            elif status == "behind":
-                logger.info(f"New update available")
+        self.read()
+        self.mirrorchyan_latest = None
+        if self.uses_mirrorchyan():
+            # Mirror酱 is the source: its failure is the result, git is never asked instead
+            try:
+                mirrorchyan = self.mirrorchyan_client()
+                latest = mirrorchyan.check()
+            except MirrorChyanError as e:
+                if e.cdk_problem:
+                    self.mirrorchyan_cdk = {"expires": 0, "error": str(e)}
+                logger.warning(f"Mirror酱 check failed: {e}")
+                raise
+            self.mirrorchyan_cdk = {"expires": mirrorchyan.cdk_expires, "error": ""}
+            if latest:
+                logger.info(f"New update available on Mirror酱: {latest['version_name']}")
+                # the update page shows what is new from the release note
+                self.mirrorchyan_latest = latest
                 return True
-            else:
-                # failed, should fallback to `git pull`
-                pass
+            logger.info("No update")
+            return False
 
         source = "origin"
         for _ in range(3):

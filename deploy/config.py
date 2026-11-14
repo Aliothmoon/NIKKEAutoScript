@@ -25,6 +25,9 @@ class ConfigModel:
     GitProxy: Optional[str] = None
     SSLVerify: bool = True
     AutoUpdate: bool = True
+    # Source updates: 'git', or 'mirrorchyan' with a Mirror酱 CDK; both set on the update page
+    UpdateSource: str = "git"
+    MirrorChyanCdk: Optional[str] = None
 
     PythonExecutable: str = "./toolkit/python.exe"
     PypiMirror: Optional[str] = None
@@ -79,9 +82,6 @@ class ConfigModel:
     SSHUser: Optional[str] = None
     SSHServer: Optional[str] = None
     SSHExecutable: Optional[str] = None
-
-    # Dynamic
-    GitOverCdn: bool = False
 
 
 class DeployConfig(ConfigModel):

@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 import module.webui.lang as lang
+from deploy.mirrorchyan import SOURCE_GIT, SOURCE_MIRRORCHYAN, MirrorChyanError, serves
 from deploy.utils import DEPLOY_CONFIG, poor_yaml_read
 from module.logger import logger
 from module.webui.setting import State
@@ -39,11 +40,88 @@ async def status(request: Request):
 async def update_status(_: Request):
     local = updater.get_commit(short_sha1=True)
     upstream = updater.get_commit(f'origin/{updater.Branch}', short_sha1=True)
-    history = updater.get_commit(f'origin/{updater.Branch}', n=20, short_sha1=True)
+    history = updater.get_history(20)
     return JSONResponse({
         'state': updater.state, 'error': updater.check_error,
         'local': local, 'upstream': upstream, 'history': history or [],
+        'source': _update_source(), 'mirrorchyan_latest': updater.mirrorchyan_latest,
+        'mirrorchyan_cdk': updater.mirrorchyan_cdk,
     })
+
+
+def _update_source() -> dict:
+    """The update source for the update page; the CDK itself is never sent back."""
+    config = State.deploy_config
+    cdk = str(config.MirrorChyanCdk or '')
+    return {
+        'type': SOURCE_MIRRORCHYAN if config.UpdateSource == SOURCE_MIRRORCHYAN else SOURCE_GIT,
+        'cdk_set': bool(cdk),
+        'cdk_tail': cdk[-4:],
+        # Mirror酱 only has the master branch of the official repository
+        'mirrorchyan_available': serves(config.Repository, config.Branch),
+    }
+
+
+# updater states in which nothing runs, so the result of a check may be dropped
+_IDLE_UPDATE_STATES = (0, 1, 'failed', 'finish')
+
+
+def _forget_check():
+    """A check result of another source or CDK says nothing about the new one."""
+    if updater.state in _IDLE_UPDATE_STATES:
+        updater.state = 0
+        updater.check_error = ''
+        updater.mirrorchyan_latest = None
+
+
+async def set_update_source(request: Request):
+    """Switches the update source right away; Mirror酱 asks for its CDK separately."""
+    try:
+        kind = str((await request.json())['type'])
+    except (KeyError, TypeError, ValueError):
+        return _json_error('Expected type in request body.')
+    if kind not in (SOURCE_GIT, SOURCE_MIRRORCHYAN):
+        return _json_error(f'Unknown update source: {kind}', 422)
+    config = State.deploy_config
+    if kind == SOURCE_MIRRORCHYAN and not serves(config.Repository, config.Branch):
+        return _json_error('Mirror酱 只提供官方仓库 master 分支的更新', 422)
+    try:
+        config.UpdateSource = kind
+    except OSError as exc:
+        logger.exception(exc)
+        return _json_error(str(exc), 500)
+    _forget_check()
+    return JSONResponse({'status': 'success', 'source': _update_source()})
+
+
+async def set_mirrorchyan_cdk(request: Request):
+    """Saves the Mirror酱 CDK once Mirror酱 accepts it, and tells when it expires."""
+    try:
+        cdk = str((await request.json())['cdk'] or '').strip()
+    except (KeyError, TypeError, ValueError):
+        return _json_error('Expected cdk in request body.')
+    if not cdk:
+        return _json_error('请先填写 Mirror酱 CDK', 422)
+
+    def verify():
+        updater.read()
+        return updater.mirrorchyan_client(cdk=cdk).verify()
+
+    try:
+        expires = await asyncio.to_thread(verify)
+    except MirrorChyanError as exc:
+        return _json_error(str(exc), 422)
+    except Exception as exc:
+        logger.exception(exc)
+        return _json_error(str(exc), 500)
+    try:
+        State.deploy_config.MirrorChyanCdk = cdk
+    except OSError as exc:
+        logger.exception(exc)
+        return _json_error(str(exc), 500)
+    updater.mirrorchyan_cdk = {'expires': expires, 'error': ''}
+    _forget_check()
+    return JSONResponse({'status': 'success', 'source': _update_source(), 'expires': expires})
 
 
 async def remote_status(_: Request):

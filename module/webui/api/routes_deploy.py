@@ -23,7 +23,10 @@ from module.webui.setting import State
 
 # Runtime state written by the announcement center, not a user setting.
 # StartupNoticeDismissedId lingers in pre-migration user deploy.yaml files.
-EXCLUDED_KEYS = {'ReadNoticeIds', 'StartupNoticeDismissedId'}
+# The update source and the Mirror酱 CDK are set on the update page.
+EXCLUDED_KEYS = {'ReadNoticeIds', 'StartupNoticeDismissedId', 'UpdateSource', 'MirrorChyanCdk'}
+# Kept by a deploy reset: settings of other pages, and what users paid for.
+RESET_KEPT_KEYS = ('SecurityEntryEnabled', 'UpdateSource', 'MirrorChyanCdk')
 # Path/URL values that benefit from a full-row input instead of the standard
 # narrow control.
 WIDE_KEYS = {'Repository', 'GitExecutable', 'AdbExecutable', 'DesktopUpdateManifest', 'PypiMirror', 'GitProxy',
@@ -591,8 +594,10 @@ async def deploy_reset(request: Request):
     template = RESET_TEMPLATES.get(data.get('template'), RESET_TEMPLATES['intl'])
     try:
         replacement = poor_yaml_read(template)
-        # A general deploy reset must never silently remove access protection.
-        replacement['SecurityEntryEnabled'] = State.deploy_config.SecurityEntryEnabled
+        # A general deploy reset must never silently remove access protection,
+        # nor the update source and CDK set on the update page.
+        for key in RESET_KEPT_KEYS:
+            replacement[key] = getattr(State.deploy_config, key)
         poor_yaml_write(replacement, State.deploy_config.file)
         State.deploy_config.read()
     except OSError as exc:
