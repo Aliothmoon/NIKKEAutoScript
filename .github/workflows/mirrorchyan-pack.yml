@@ -1,0 +1,43 @@
+name: Upload Source to MirrorChyan
+
+# 把 master 的新提交作为快照上传到 Mirror酱，选择 Mirror酱 更新源的用户从这里热更新源码。
+# 需要的 secrets（Settings -> Secrets and variables -> Actions）：
+#   MIRRORCHYAN_UPLOAD_TOKEN：Mirror酱 上传 token，未配置时跳过（如 fork）
+
+on:
+  push:
+    branches: [master]
+  # 对话数据由 GITHUB_TOKEN 自动合并，产生的提交不会触发 push，在它结束后补一次
+  workflow_run:
+    workflows: [Update NIKKE Dialogue Data]
+    types: [completed]
+  workflow_dispatch:
+
+# 串行执行，避免旧提交晚于新提交上传完成；只上传 master 当前最新的提交
+concurrency:
+  group: mirrorchyan-pack
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    env:
+      MIRRORCHYAN_UPLOAD_TOKEN: ${{ secrets.MIRRORCHYAN_UPLOAD_TOKEN }}
+    steps:
+      - name: Skip without upload token
+        if: env.MIRRORCHYAN_UPLOAD_TOKEN == ''
+        run: echo "MIRRORCHYAN_UPLOAD_TOKEN is not set, skip uploading"
+
+      - name: Checkout master
+        if: env.MIRRORCHYAN_UPLOAD_TOKEN != ''
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          ref: master
+
+      - name: Upload snapshot
+        if: env.MIRRORCHYAN_UPLOAD_TOKEN != ''
+        uses: MirrorChyan/git-pack-uploading-action@38c409935260bff149e793476e821d541bef3c57  # v1
+        with:
+          mirrorchyan_rid: NKAS
+          upload_token: ${{ env.MIRRORCHYAN_UPLOAD_TOKEN }}
+          branch: master
