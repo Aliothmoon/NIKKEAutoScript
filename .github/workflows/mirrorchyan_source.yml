@@ -1,20 +1,15 @@
 name: mirrorchyan_source
 
-# 把 master 的新提交作为源码快照上传到 Mirror酱 资源 NKAS（pack 类型），
-# 选择 Mirror酱 更新源的用户从这里热更新源码；启动器整包见 mirrorchyan_release.yml。
-# 需要的 secrets（Settings -> Secrets and variables -> Actions）：
-#   MirrorChyanUploadToken：Mirror酱 上传 token，需包含 NKAS；未配置时跳过（如 fork）
+# secrets: MirrorChyanUploadToken
 
 on:
   push:
     branches: [master]
-  # 对话数据由 GITHUB_TOKEN 自动合并，产生的提交不会触发 push，在它结束后补一次
   workflow_run:
     workflows: [Update NIKKE Dialogue Data]
     types: [completed]
   workflow_dispatch:
 
-# 串行执行，避免旧提交晚于新提交上传完成；action 只上传 master 当前最新的提交
 concurrency:
   group: mirrorchyan-source
   cancel-in-progress: false

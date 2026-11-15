@@ -1,15 +1,11 @@
 name: mirrorchyan_release
 
-# Release 发布后，把整包 NKAS_*_full-cn.7z（解开后重新打包为 zip）上传到 Mirror酱 资源
-# NIKKEAutoScript，供新安装和启动器更新；源码热更新见 mirrorchyan_source.yml。
-# 需要的 secrets（Settings -> Secrets and variables -> Actions）：
-#   MirrorChyanUploadToken：Mirror酱 上传 token，需包含 NIKKEAutoScript；未配置时跳过（如 fork）
+# secrets: MirrorChyanUploadToken
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to upload, the latest release by default'
         default: ''
         required: false
   release:
@@ -17,7 +13,6 @@ on:
 
 permissions:
   contents: read
-  # the action opens an issue when the upload fails
   issues: write
 
 jobs:
