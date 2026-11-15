@@ -1,8 +1,9 @@
-name: Upload Source to MirrorChyan
+name: mirrorchyan_source
 
-# 把 master 的新提交作为快照上传到 Mirror酱，选择 Mirror酱 更新源的用户从这里热更新源码。
+# 把 master 的新提交作为源码快照上传到 Mirror酱 资源 NKAS（pack 类型），
+# 选择 Mirror酱 更新源的用户从这里热更新源码；启动器整包见 mirrorchyan_release.yml。
 # 需要的 secrets（Settings -> Secrets and variables -> Actions）：
-#   MIRRORCHYAN_UPLOAD_TOKEN：Mirror酱 上传 token，未配置时跳过（如 fork）
+#   MirrorChyanUploadToken：Mirror酱 上传 token，需包含 NKAS；未配置时跳过（如 fork）
 
 on:
   push:
@@ -15,27 +16,27 @@ on:
 
 # 串行执行，避免旧提交晚于新提交上传完成；action 只上传 master 当前最新的提交
 concurrency:
-  group: mirrorchyan-pack
+  group: mirrorchyan-source
   cancel-in-progress: false
 
 jobs:
-  upload:
+  mirrorchyan:
     runs-on: ubuntu-latest
     env:
-      MIRRORCHYAN_UPLOAD_TOKEN: ${{ secrets.MIRRORCHYAN_UPLOAD_TOKEN }}
+      UPLOAD_TOKEN: ${{ secrets.MirrorChyanUploadToken }}
     steps:
       - name: Skip without upload token
-        if: env.MIRRORCHYAN_UPLOAD_TOKEN == ''
-        run: echo "MIRRORCHYAN_UPLOAD_TOKEN is not set, skip uploading"
+        if: env.UPLOAD_TOKEN == ''
+        run: echo "MirrorChyanUploadToken is not set, skip uploading"
 
       - uses: actions/checkout@v4
-        if: env.MIRRORCHYAN_UPLOAD_TOKEN != ''
+        if: env.UPLOAD_TOKEN != ''
         with:
           ref: master
 
       - uses: MirrorChyan/git-pack-uploading-action@v1
-        if: env.MIRRORCHYAN_UPLOAD_TOKEN != ''
+        if: env.UPLOAD_TOKEN != ''
         with:
           mirrorchyan_rid: NKAS
-          upload_token: ${{ env.MIRRORCHYAN_UPLOAD_TOKEN }}
+          upload_token: ${{ env.UPLOAD_TOKEN }}
           branch: master

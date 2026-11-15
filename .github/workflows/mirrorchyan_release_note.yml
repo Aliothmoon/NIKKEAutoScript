@@ -1,0 +1,38 @@
+name: mirrorchyan_release_note
+
+# Release 发布或编辑说明后，把说明同步为 Mirror酱 资源 NIKKEAutoScript 对应版本的更新日志。
+# 需要的 secrets（Settings -> Secrets and variables -> Actions）：
+#   MirrorChyanUploadToken：Mirror酱 上传 token，需包含 NIKKEAutoScript；未配置时跳过（如 fork）
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to sync, the latest release by default'
+        default: ''
+        required: false
+  release:
+    types: [published, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  mirrorchyan:
+    runs-on: macos-latest
+    env:
+      UPLOAD_TOKEN: ${{ secrets.MirrorChyanUploadToken }}
+
+    steps:
+      - name: Skip without upload token
+        if: env.UPLOAD_TOKEN == ''
+        run: echo "MirrorChyanUploadToken is not set, skip syncing"
+
+      - uses: MirrorChyan/release-note-action@v1
+        if: env.UPLOAD_TOKEN != ''
+        with:
+          mirrorchyan_rid: NIKKEAutoScript
+          version_name: ${{ inputs.tag || github.event.release.tag_name }}
+
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upload_token: ${{ env.UPLOAD_TOKEN }}
