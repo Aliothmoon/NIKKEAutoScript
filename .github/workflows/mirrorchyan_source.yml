@@ -32,6 +32,6 @@ jobs:
       - uses: MirrorChyan/git-pack-uploading-action@v1
         if: env.UPLOAD_TOKEN != ''
         with:
-          mirrorchyan_rid: NKAS
+          mirrorchyan_rid: NIKKEAutoScript-Source
           upload_token: ${{ env.UPLOAD_TOKEN }}
           branch: master
